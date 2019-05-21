@@ -17,10 +17,23 @@
  * specific language governing permissions and limitations
  * under the License.
  *
+*/
+
+/* 
+ * moveTo
+ * 
+ * IN:
+ *  args
+ *   0 - URL of entry to move
+ *   1 - URL of the directory into which to move the entry
+ *   2 - the new name of the entry, defaults to the current name
+ * OUT:
+ *  success - entry for the copied file or directory
+ *  fail - FileError
  */
 
-module.exports = function () {
-    // window.webkitRequestFileSystem and window.webkitResolveLocalFileSystemURL are available only in Chrome and
-    // possibly a good flag to indicate that we're running in Chrome
-    return window.webkitRequestFileSystem && window.webkitResolveLocalFileSystemURL;
+var copy = cordova.require('cordova-plugin-file.copyToProxy');
+
+module.exports = function (success, fail, args) {
+    copy(success, fail, args, true);
 };
