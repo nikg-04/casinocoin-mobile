@@ -691,7 +691,7 @@ I understand that the recovery phrase IS NOT A WALLET BACKUP.</p><br>
 	<div><center><button  type="button" class="btn btn-primary" ontouchend="doGenerateBackup();">Backup Wallet</button></center></div>
 	<div><center><button  type="button" class="btn btn-primary" id="btnsettingsresortbackup" ontouchend="showTab('#tabrestore');">Restore Wallet</button></center></div>
 	<div><center><button  type="button" class="btn btn-primary" id="btnfaq" ontouchend="window.open('https://casinocoin.org/faq', '_system');">FAQ / Help</button></center></div>
-	<div><center style="color:black;" data-version="version">Version: 4.1.2</div>
+	<div><center style="color:black;" data-version="version">Version: 4.1.5</div>
 	<div><center style="color:black;" class="deviceversion"></center></div>
 </div>
 
@@ -771,7 +771,7 @@ I understand that the recovery phrase IS NOT A WALLET BACKUP.</p><br>
 	<br>
 	<p style="text-align:center;">If you do not agree then close and uninstall this application.</p>
 </center>
-<p><center style="color:white;" data-version="version">Version: 4.1.2</p>
+<p><center style="color:white;" data-version="version">Version: 4.1.5</p>
 <p><center style="color:white;" class="deviceversion"></center></p>
 </div>
 
@@ -2190,6 +2190,9 @@ function doPay(nonce) {
 
 const server = ontestnet ? "ws://wst02.casinocoin.org:7007" : "wss://ws01.casinocoin.org:4443"
 
+const prod_servers = ['wss://ws01.casinocoin.org:4443/', 'wss://ws02.casinocoin.org:4443/', 'wss://ws03.casinocoin.org:4443/', 'wss://ws04.casinocoin.org:4443/'];
+const test_servers = ['ws://wst01.casinocoin.org:7007/', 'ws://wst02.casinocoin.org:7007/'];
+
 var remote = new casinocoin.CasinocoinAPI({
     server: server
 });
@@ -3560,8 +3563,34 @@ function connectToCasinoCoin(funcsuccess) {
 			funcsuccess();
 		}).catch(function(e) {
 			if (debug) console.log("connect error: " + e);
-			connectToCasinoCoin(funcsuccess);
+			connectToDifferentServer();
+			// connectToCasinoCoin(funcsuccess);
 		});
+
+	remote.on('disconnected', (code) => {
+		console.log('disconnected, code:', code);
+		connectToDifferentServer();
+	});
+
+	remote.on('error', (errorCode, errorMessage) => {
+		console.log('error', errorCode + ': ' + errorMessage);
+		connectToDifferentServer();
+	});
+}
+
+function connectToDifferentServer() {
+	var serversCount = 1;
+	var randomServerNumber = 1;
+
+	serversCount = ontestnet ? test_servers.length : prod_servers.length;
+	randomServerNumber = Math.floor(Math.random() * serversCount) + 1;
+
+	var diffServer = ontestnet ? test_servers[randomServerNumber - 1] : prod_servers[randomServerNumber - 1];
+
+	remote = new casinocoin.CasinocoinAPI({
+    	server: diffServer
+	});
+	connectToCasinoCoin(function() {if (debug) console.log("connected to different server")});
 }
 
 /* This function actually executes the CSC send on the CasinoCoin network. You must ensure the passphrase is valid
@@ -3669,17 +3698,18 @@ function doGetTransactions(address, marker) {
 			for (var i in x) {
                 console.log(x[i]);
 			    var deliveredAmount = x[i].outcome.deliveredAmount;
-			    var destinationAddress = x[i].specification.destination.address
-                var outgoing = (x[i].specification.source.address == address);
+				if(deliveredAmount) {
+					var destinationAddress = x[i].specification.destination.address
+					var outgoing = (x[i].specification.source.address == address);
+          
+          tx += '<li class="txrow '+(outgoing ? 'txsent' : 'txreceived')+'"data-txhash="'+x[i].id+'" onclick="window.open(\'http://explorer.casinocoin.org/tx/'+x[i].id+'\');">';
+					tx += '<span><i class="fa ' + ( outgoing ? 'fa-paper-plane-o' : 'fa-inbox' ) + '" aria-hidden="true"></i>';
+					tx +=  destinationAddress + '</span>';
+					tx += '<span >' + deliveredAmount.value + ' ' + deliveredAmount.currency + '</span>';
 
-                tx += '<li class="txrow '+(outgoing ? 'txsent' : 'txreceived')+'"data-txhash="'+x[i].id+'" ontouchend="window.open(\'http://explorer.casinocoin.org/tx/'+x[i].id+'\');">';
-
-				tx += '<span><i class="fa ' + ( outgoing ? 'fa-paper-plane-o' : 'fa-inbox' ) + '" aria-hidden="true"></i>';
-				tx +=  destinationAddress + '</span>';
-				tx += '<span >' + deliveredAmount.value + ' ' + deliveredAmount.currency + '</span>';
-
-				tx += '</li>'
-				count++;
+					tx += '</li>'
+					count++;
+				}
 			}
 		}
 		if (count == 0) {
